@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_map/flutter_map.dart';
@@ -84,6 +85,7 @@ class _MyHomePageState extends State<MyHomePage>
   String latestCrimeMonth = '';
   String mostCommonCrime = '';
   String riskLevel = '';
+  List<MapEntry<String, int>> topCrimeTypes = [];
 
   Color riskColor = Colors.green;
 
@@ -215,6 +217,14 @@ final postcodeUrl = Uri.parse(
           .reduce((a, b) => a.value > b.value ? a : b)
           .key;
 
+          topCrimeTypes = crimeCounts.entries.toList();
+
+topCrimeTypes.sort(
+  (a, b) => b.value.compareTo(a.value),
+);
+
+topCrimeTypes = topCrimeTypes.take(3).toList();
+
       errorMessage = '';
       isLoading = false;
     });
@@ -323,6 +333,46 @@ void dispose() {
   super.dispose();
 }
 
+Future<void> reportBug() async {
+  final Uri emailUri = Uri(
+    scheme: 'mailto',
+    path: 'app1.f4mi1y@gmail.com',
+    queryParameters: {
+      'subject': 'Crime Watch Bug Report',
+      'body': '''
+Postcode:
+Device:
+Issue:
+
+''',
+    },
+  );
+
+  if (await canLaunchUrl(emailUri)) {
+    await launchUrl(emailUri);
+  }
+}
+
+Future<void> suggestFeature() async {
+  final Uri emailUri = Uri(
+    scheme: 'mailto',
+    path: 'app1.f4mi1y@gmail.com',
+    queryParameters: {
+      'subject': 'Crime Watch Feature Request',
+      'body': '''
+'Feature idea:'
+
+'Why would it help?'
+
+''',
+    },
+  );
+
+  if (await canLaunchUrl(emailUri)) {
+    await launchUrl(emailUri);
+  }
+}
+
   @override
   Widget build(BuildContext context) {
 
@@ -408,13 +458,27 @@ Container(
                 color: Colors.blueGrey.shade100,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: TextField(controller: postcodeController,
-                decoration: InputDecoration(
-                  hintText: 'Enter UK postcode',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.location_on),
-                ),
-              ),
+              child: TextField(
+  controller: postcodeController,
+  textCapitalization: TextCapitalization.characters,
+  maxLength: 8,
+
+onChanged: (value) {
+  postcodeController.value = TextEditingValue(
+    text: value.toUpperCase(),
+    selection: TextSelection.collapsed(
+      offset: value.length,
+    ),
+  );
+},
+
+  decoration: InputDecoration(
+    hintText: 'Enter UK postcode',
+    border: OutlineInputBorder(),
+    prefixIcon: Icon(Icons.location_on),
+    counterText: '',
+  ),
+),
             ),
             const SizedBox(height: 20),
 
@@ -423,7 +487,7 @@ Container(
               width: double.infinity,
               child: ElevatedButton(
                onPressed: () async {
-  searchedPostcode = postcodeController.text.trim();
+  searchedPostcode = postcodeController.text.trim().toUpperCase();
   print('ABOUT TO CALL FETCH'); 
   await fetchCrimeData();
 
@@ -675,7 +739,8 @@ Marker(
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Column(
-            children: [
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
               Icon(Icons.warning_amber_rounded),
               SizedBox(height: 8),
               Text(
@@ -703,13 +768,14 @@ Marker(
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Column(
-            children: [
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
               Icon(Icons.location_on),
               SizedBox(height: 8),
               Text(
                 searchedPostcode,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -768,37 +834,106 @@ Marker(
       Text('📊 Crime Categories: $crimeTypesCount'),
       Text('🔥 Most Common Crime: $mostCommonCrime'),
       Text('📅 Latest Data: $latestCrimeMonth'),
+
+const SizedBox(height: 12),
+
+Text(
+  '⭐ Safety Score: ${riskLevel == 'Low' ? '8/10' : riskLevel == 'Medium' ? '5/10' : '2/10'}',
+  style: const TextStyle(
+    fontWeight: FontWeight.bold,
+  ),
+),
+
+const SizedBox(height: 16),
+
+const Text(
+  'Top Crime Types',
+  style: TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+  ),
+),
+
+const SizedBox(height: 8),
+
+if (topCrimeTypes.isNotEmpty)
+  Text(
+    '🥇 ${formatCrimeCategory(topCrimeTypes[0].key)} (${topCrimeTypes[0].value})',
+  ),
+
+if (topCrimeTypes.length > 1)
+  Text(
+    '🥈 ${formatCrimeCategory(topCrimeTypes[1].key)} (${topCrimeTypes[1].value})',
+  ),
+
+if (topCrimeTypes.length > 2)
+  Text(
+    '🥉 ${formatCrimeCategory(topCrimeTypes[2].key)} (${topCrimeTypes[2].value})',
+  ),
+
     ],
   ),
 ),
 
-                    DropdownButton<String>(
-                      value: selectedCrimeFilter,
-                      isExpanded: true,
-                      items: crimeFilters.map((filter) {
-                        return DropdownMenuItem<String>(
-                          value: filter,
-                          child: Text(
-                            filter == 'All Crimes'
-                                ? filter
-                                : formatCrimeCategory(filter),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-  setState(() {
-    selectedCrimeFilter = value!;
+const SizedBox(height: 16),
 
-    if (value == 'All Crimes') {
-      filteredCrimes = crimes;
-    } else {
-      filteredCrimes = crimes.where((crime) {
-        return crime['category'] == value;
-      }).toList();
-    }
-  });
-},
-                    ),
+const Text(
+  'Filter Crimes',
+  style: TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+  ),
+),
+const SizedBox(height: 8),
+
+                    Container(
+  padding: const EdgeInsets.symmetric(
+    horizontal: 16,
+  ),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(
+      color: Colors.grey.shade300,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black12,
+        blurRadius: 6,
+        offset: Offset(0, 2),
+      ),
+    ],
+  ),
+  child: DropdownButton<String>(
+    value: selectedCrimeFilter,
+    isExpanded: true,
+    underline: const SizedBox(),
+    icon: const Icon(Icons.filter_list),
+    items: crimeFilters.map((filter) {
+      return DropdownMenuItem<String>(
+        value: filter,
+        child: Text(
+          filter == 'All Crimes'
+              ? filter
+              : formatCrimeCategory(filter),
+        ),
+      );
+    }).toList(),
+    onChanged: (value) {
+      setState(() {
+        selectedCrimeFilter = value!;
+
+        if (value == 'All Crimes') {
+          filteredCrimes = crimes;
+        } else {
+          filteredCrimes = crimes.where((crime) {
+            return crime['category'] == value;
+          }).toList();
+        }
+      });
+    },
+  ),
+)
                   ],
                 ),
               ),
@@ -851,6 +986,55 @@ Marker(
               );
     },
     ),
+
+const SizedBox(height: 24),
+
+Card(
+  child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      children: [
+        const Text(
+          'Support & Feedback',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        ListTile(
+  leading: const Icon(Icons.bug_report),
+  title: const Text('Report a Bug'),
+  subtitle: const Text(
+    'Tell us about an issue you found',
+  ),
+  onTap: reportBug,
+),
+
+        ListTile(
+  leading: const Icon(Icons.lightbulb),
+  title: const Text('Suggest a Feature'),
+  subtitle: const Text(
+    'Share an idea for improving Crime Watch',
+  ),
+  onTap: suggestFeature,
+),
+
+        const Divider(),
+
+        const Text(
+          'Crime Watch UK v1.0',
+          style: TextStyle(
+            color: Colors.grey,
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+
           ],
       ),
     ),
