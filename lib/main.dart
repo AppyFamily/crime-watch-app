@@ -589,8 +589,8 @@ Marker(
     searchedLatitude!,
     searchedLongitude!,
   ),
-  width: 50,
-  height: 50,
+  width: 60,
+  height: 60,
   child: AnimatedBuilder(
     animation: pulseAnimation,
     builder: (context, child) {
@@ -600,8 +600,8 @@ Marker(
       );
     },
     child: Container(
-      width: 40,
-      height: 40,
+      width: 50,
+      height: 50,
       decoration: BoxDecoration(
         color: Colors.blue,
         shape: BoxShape.circle,
@@ -715,37 +715,6 @@ Marker(
       );
                     }),
 
-                        Marker(
-                          point: LatLng(
-                            searchedLatitude!,
-                            searchedLongitude!,
-                          ),
-                          width: 50,
-                          height: 50,
-                         child: Container(
-  width: 40,
-  height: 40,
-  decoration: BoxDecoration(
-    color: Colors.blue,
-    shape: BoxShape.circle,
-    border: Border.all(
-      color: Colors.white,
-      width: 3,
-    ),
-    boxShadow: const [
-      BoxShadow(
-        color: Colors.black26,
-        blurRadius: 6,
-      ),
-    ],
-  ),
-  child: const Icon(
-    Icons.person,
-    color: Colors.white,
-    size: 24,
-  ),
-),
-                        ),
                       ],
                     ),
                   ],
