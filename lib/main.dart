@@ -354,23 +354,13 @@ Issue:
 }
 
 Future<void> suggestFeature() async {
-  final Uri emailUri = Uri(
-    scheme: 'mailto',
-    path: 'app1.f4mi1y@gmail.com',
-    queryParameters: {
-      'subject': 'Crime Watch Feature Request',
-      'body': '''
-'Feature idea:'
-
-'Why would it help?'
-
-''',
-    },
+  final Uri emailUri = Uri.parse(
+    'mailto:app1.f4mi1y@gmail.com'
+    '?subject=Crime%20Watch%20Feature%20Request'
+    '&body=Feature%20idea:%0A%0AWhy%20would%20it%20help?%0A%0A',
   );
 
-  if (await canLaunchUrl(emailUri)) {
-    await launchUrl(emailUri);
-  }
+  await launchUrl(emailUri);
 }
 
   @override
