@@ -66,6 +66,7 @@ class _MyHomePageState extends State<MyHomePage>
   String searchedPostcode = '';
   List crimes = [];
   String crimeCategory = '';
+  List<String> recentSearches = [];
 
   double? searchedLatitude;
   double? searchedLongitude;
@@ -75,6 +76,7 @@ class _MyHomePageState extends State<MyHomePage>
   bool clusteringEnabled = true;
 
   final MapController mapController = MapController();
+  final ScrollController scrollController = ScrollController();
 
   String selectedCrimeFilter = 'All Crimes';
   List<String> crimeFilters = ['All Crimes'];
@@ -363,6 +365,53 @@ Future<void> suggestFeature() async {
   await launchUrl(emailUri);
 }
 
+Future<void> showPrivacyPolicy() async {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Privacy Policy'),
+      content: const SingleChildScrollView(
+        child: Text(
+          'Crime Watch UK does not collect personal information. '
+          'Crime data is provided by the UK Police Data API. '
+          'Feedback submitted through email is only used to improve the app. '
+          'Location data is only used to search the postcode entered by the user.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> showTermsAndConditions() async {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Terms & Conditions'),
+      content: const SingleChildScrollView(
+        child: Text(
+          'Crime Watch UK provides publicly available crime data '
+          'from the UK Police Data API. Information is provided for '
+          'general information purposes only and should not be relied '
+          'upon as legal or safety advice. Users are responsible for '
+          'their own decisions and actions.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
   @override
   Widget build(BuildContext context) {
 
@@ -390,6 +439,7 @@ Future<void> suggestFeature() async {
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: SingleChildScrollView(
+          controller: scrollController,
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -478,6 +528,15 @@ onChanged: (value) {
               child: ElevatedButton(
                onPressed: () async {
   searchedPostcode = postcodeController.text.trim().toUpperCase();
+
+ if (!recentSearches.contains(searchedPostcode)) {
+    recentSearches.insert(0, searchedPostcode);
+
+    if (recentSearches.length > 5) {
+      recentSearches.removeLast();
+    }
+  }
+
   print('ABOUT TO CALL FETCH'); 
   await fetchCrimeData();
 
@@ -977,6 +1036,50 @@ const SizedBox(height: 8),
     },
     ),
 
+if (recentSearches.isNotEmpty)
+  Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Recent Searches',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          ...recentSearches.map(
+  (postcode) => ListTile(
+    leading: const Icon(Icons.history),
+    title: Text(postcode),
+    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+
+    onTap: () async {
+  postcodeController.text = postcode;
+  searchedPostcode = postcode;
+
+  await fetchCrimeData();
+
+  scrollController.animateTo(
+    0,
+    duration: const Duration(milliseconds: 600),
+    curve: Curves.easeInOut,
+  );
+
+  setState(() {});
+},
+  ),
+),
+        ],
+      ),
+    ),
+  ),
+
 const SizedBox(height: 24),
 
 Card(
@@ -1010,6 +1113,18 @@ Card(
     'Share an idea for improving Crime Watch',
   ),
   onTap: suggestFeature,
+),
+
+ListTile(
+  leading: const Icon(Icons.privacy_tip),
+  title: const Text('Privacy Policy'),
+  onTap: showPrivacyPolicy,
+),
+
+ListTile(
+  leading: const Icon(Icons.description),
+  title: const Text('Terms & Conditions'),
+  onTap: showTermsAndConditions,
 ),
 
         const Divider(),
