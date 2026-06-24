@@ -81,6 +81,8 @@ class _MyHomePageState extends State<MyHomePage>
   String selectedCrimeFilter = 'All Crimes';
   List<String> crimeFilters = ['All Crimes'];
   List filteredCrimes = [];
+  Map<String, dynamic>? selectedCrime;
+  bool showCrimeList = false;
   bool isLoading = false;
   String errorMessage = '';
   int crimeTypesCount = 0;
@@ -643,7 +645,11 @@ Marker(
       height: 30,
      child: GestureDetector(
   onTap: () {
-    showDialog(
+  setState(() {
+    selectedCrime = crime;
+  });
+
+  showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -728,6 +734,86 @@ Marker(
                 child: CircularProgressIndicator(),
               ),
 
+if (selectedCrime != null)
+  Dismissible(
+    key: const Key('selectedCrime'),
+    direction: DismissDirection.horizontal,
+    onDismissed: (_) {
+      setState(() {
+        selectedCrime = null;
+      });
+    },
+    child: Card(
+      child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+  'Selected Crime',
+  style: TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+  ),
+),
+
+const SizedBox(height: 12),
+
+Text(
+  '${getCrimeIcon(selectedCrime!['category'])} '
+  '${formatCrimeCategory(selectedCrime!['category'])}',
+  style: const TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+  ),
+),
+
+const SizedBox(height: 8),
+
+Text(
+  '📍 ${selectedCrime!['location']['street']['name']}',
+),
+
+Text(
+  '📅 ${selectedCrime!['month']}',
+),
+
+const SizedBox(height: 16),
+
+const Text(
+  'Area Insights',
+  style: TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+  ),
+),
+
+const SizedBox(height: 8),
+
+Text(
+  '📊 Total Crimes In Area: ${crimes.length}',
+),
+
+Text(
+  '📈 Crime Categories: $crimeTypesCount',
+),
+
+Text(
+  '🔥 Most Common Crime: ${formatCrimeCategory(mostCommonCrime)}',
+),
+
+
+
+const SizedBox(height: 16),
+
+Text(
+  '📋 ${selectedCrime!['outcome_status']?['category'] ?? 'No outcome available'}',
+),
+        ],
+      ),
+    ),
+  ),
+  ),
               Text(
                 'Searching area: $searchedPostcode',
                 style: const TextStyle(
@@ -961,6 +1047,22 @@ const SizedBox(height: 8),
 
             const SizedBox(height: 20),
 
+ElevatedButton(
+  onPressed: () {
+    setState(() {
+      showCrimeList = !showCrimeList;
+    });
+  },
+  child: Text(
+    showCrimeList
+        ? 'Hide Crime List'
+        : 'View All Crimes (${filteredCrimes.length})',
+  ),
+),
+
+const SizedBox(height: 10),
+
+if (showCrimeList)
     ListView.builder(
     shrinkWrap: true,
     physics: const NeverScrollableScrollPhysics(),
@@ -1012,13 +1114,27 @@ if (recentSearches.isNotEmpty)
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Recent Searches',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    const Text(
+      'Recent Searches',
+      style: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
+    TextButton(
+      onPressed: () {
+        setState(() {
+          recentSearches.clear();
+        });
+      },
+      child: const Text('Clear'),
+    ),
+  ],
+),
 
           const SizedBox(height: 12),
 
