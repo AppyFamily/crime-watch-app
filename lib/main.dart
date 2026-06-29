@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Crime Watch UK',
+      title: 'Nozey',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
         seedColor: Colors.blueGrey,
 ),
       ),
-      home: const MyHomePage(title: 'Crime Watch UK'),
+      home: const MyHomePage(title: 'Nozey'),
     );
   }
 }
@@ -83,6 +83,7 @@ class _MyHomePageState extends State<MyHomePage>
   List filteredCrimes = [];
   Map<String, dynamic>? selectedCrime;
   bool showCrimeList = false;
+  bool showHeader = false;
   bool isLoading = false;
   String errorMessage = '';
   int crimeTypesCount = 0;
@@ -317,6 +318,14 @@ topCrimeTypes = topCrimeTypes.take(3).toList();
 void initState() {
   super.initState();
 
+  Future.delayed(const Duration(milliseconds: 200), () {
+  if (mounted) {
+    setState(() {
+      showHeader = true;
+    });
+  }
+});
+
   pulseController = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 2),
@@ -338,23 +347,13 @@ void dispose() {
 }
 
 Future<void> reportBug() async {
-  final Uri emailUri = Uri(
-    scheme: 'mailto',
-    path: 'app1.f4mi1y@gmail.com',
-    queryParameters: {
-      'subject': 'Crime Watch Bug Report',
-      'body': '''
-Postcode:
-Device:
-Issue:
-
-''',
-    },
+  final Uri emailUri = Uri.parse(
+    'mailto:app1.f4mi1y@gmail.com'
+    '?subject=Crime%20Watch%20Bug%20Report'
+    '&body=Postcode:%0A%0ADevice:%0A%0AIssue:%0A%0A',
   );
 
-  if (await canLaunchUrl(emailUri)) {
-    await launchUrl(emailUri);
-  }
+  await launchUrl(emailUri);
 }
 
 Future<void> suggestFeature() async {
@@ -374,7 +373,7 @@ Future<void> showPrivacyPolicy() async {
       title: const Text('Privacy Policy'),
       content: const SingleChildScrollView(
         child: Text(
-          'Crime Watch UK does not collect personal information. '
+          'Nozey UK does not collect personal information. '
           'Crime data is provided by the UK Police Data API. '
           'Feedback submitted through email is only used to improve the app. '
           'Location data is only used to search the postcode entered by the user.',
@@ -397,7 +396,7 @@ Future<void> showTermsAndConditions() async {
       title: const Text('Terms & Conditions'),
       content: const SingleChildScrollView(
         child: Text(
-          'Crime Watch UK provides publicly available crime data '
+          'Nozey UK provides publicly available crime data '
           'from the UK Police Data API. Information is provided for '
           'general information purposes only and should not be relied '
           'upon as legal or safety advice. Users are responsible for '
@@ -433,38 +432,82 @@ Future<void> showTermsAndConditions() async {
         // TRY THIS: Try changing the color here to a specific color (to
         // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
         // change color while the other colors stay the same.
-       backgroundColor: const Color(0xFFF5F7FA),
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+       backgroundColor: Colors.transparent,
+surfaceTintColor: Colors.transparent,
+elevation: 0,
+centerTitle: true,
+title: Text(
+  widget.title,
+  style: const TextStyle(
+    fontWeight: FontWeight.bold,
+    color: Colors.black87,
+  ),
+),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: SingleChildScrollView(
+      body: Container(
+  decoration: const BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Color(0xFFE3F2FD),
+        Color(0xFFF5FAFF),
+        Colors.white,
+      ],
+    ),
+  ),
+  child: Padding(
+    padding: const EdgeInsets.all(20.0),
+    child: SingleChildScrollView(
           controller: scrollController,
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 40),
+            const SizedBox(height: 20),
 
-           const Text(
-  'Crime Watch UK',
-  style: TextStyle(
-    fontSize: 36,
-    fontWeight: FontWeight.bold,
-    color: Colors.black87,
+        AnimatedOpacity(
+  opacity: showHeader ? 1.0 : 0.0,
+  duration: const Duration(milliseconds: 1000),
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(
+        Icons.location_on,
+        color: Colors.blue.shade600,
+        size: 44,
+      ),
+      const SizedBox(width: 10),
+      const Text(
+        'Nozey',
+        style: TextStyle(
+          fontSize: 42,
+          fontWeight: FontWeight.w800,
+          color: Colors.black87,
+          letterSpacing: -1,
+        ),
+      ),
+    ],
   ),
 ),
 
 const SizedBox(height: 12),
 
-const Text(
-  'Discover local crime trends, safety insights and police data across the UK.',
-  style: TextStyle(
-    fontSize: 18,
-    height: 1.4,
-    color: Colors.black54,
+const SizedBox(height: 8),
+
+AnimatedOpacity(
+  opacity: showHeader ? 1.0 : 0.0,
+  duration: const Duration(milliseconds: 1400),
+  child: Center(
+  child: Text(
+    'KNOW YOUR AREA.',
+    style: const TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 4,
+      color: Color(0xFF2563EB),
+    ),
   ),
+),
 ),
 
 const SizedBox(height: 20),
@@ -496,10 +539,17 @@ Container(
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.blueGrey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
+             decoration: BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(18),
+  boxShadow: const [
+    BoxShadow(
+      color: Colors.black12,
+      blurRadius: 12,
+      offset: Offset(0, 4),
+    ),
+  ],
+),
               child: TextField(
   controller: postcodeController,
   textCapitalization: TextCapitalization.characters,
@@ -908,7 +958,29 @@ Text(
 
                     const SizedBox(height: 10),
 
-                    Container(
+                    GestureDetector(
+  onTap: () {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$riskLevel Risk Area'),
+        content: Text(
+          riskLevel == 'Low'
+              ? '✅ This area has relatively low reported crime.\n\nContinue using normal safety precautions.'
+              : riskLevel == 'Medium'
+                  ? '⚠️ This area has a moderate level of reported crime.\n\nStay aware of your surroundings, especially after dark.'
+                  : '🚨 This area has a higher level of reported crime.\n\nRemain alert, keep valuables out of sight and avoid isolated areas where possible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  },
+  child: Container(
   width: double.infinity,
   padding: const EdgeInsets.all(16),
   decoration: BoxDecoration(
@@ -978,6 +1050,7 @@ if (topCrimeTypes.length > 2)
     ],
   ),
 ),
+                    ),
 
 const SizedBox(height: 16),
 
@@ -1195,7 +1268,7 @@ Card(
   leading: const Icon(Icons.lightbulb),
   title: const Text('Suggest a Feature'),
   subtitle: const Text(
-    'Share an idea for improving Crime Watch',
+    'Share an idea for improving Nozey',
   ),
   onTap: suggestFeature,
 ),
@@ -1215,7 +1288,7 @@ ListTile(
         const Divider(),
 
         const Text(
-          'Crime Watch UK v1.0',
+          'Nozey v1.0\nDeveloped by Appy Family',
           style: TextStyle(
             color: Colors.grey,
           ),
@@ -1228,6 +1301,7 @@ ListTile(
           ],
       ),
     ),
+      ),
       ),
   );
 }
