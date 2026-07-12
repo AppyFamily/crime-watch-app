@@ -119,6 +119,41 @@ final postcodeUrl = Uri.parse(
       'longitude': searchedLongitude,
     };
   }
+
+Future<Map<String, dynamic>?> getCoordinatesFromTown() async {
+  final town = postcodeController.text.trim();
+
+  final townUrl = Uri.parse(
+    'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(town)}&countrycodes=gb&format=jsonv2&limit=1',
+  );
+
+  final response = await http.get(
+    townUrl,
+    headers: {
+      'User-Agent': 'Nozey/1.0',
+    },
+  );
+
+  if (response.statusCode != 200) {
+    return null;
+  }
+
+  final data = jsonDecode(response.body);
+
+  if (data.isEmpty) {
+    return null;
+  }
+
+  searchedLatitude = double.parse(data[0]['lat']);
+  searchedLongitude = double.parse(data[0]['lon']);
+
+  return {
+    'latitude': searchedLatitude,
+    'longitude': searchedLongitude,
+  };
+}
+
+
   Future<void> fetchCrimeData() async {
     print('FETCH STARTED');
     print('SEARCH STARTED');
@@ -128,15 +163,18 @@ final postcodeUrl = Uri.parse(
       isLoading = true;
     });
     try {
-      final coordinates = await getCoordinatesFromPostcode();
+     Map<String, dynamic>? coordinates =
+    await getCoordinatesFromPostcode();
 
-      if (coordinates == null) {
-        setState(() {
-          errorMessage = 'Could not find postcode coordinates';
-          isLoading = false;
-        });
-        return;
-      }
+coordinates ??= await getCoordinatesFromTown();
+
+if (coordinates == null) {
+  setState(() {
+    errorMessage = 'Could not find postcode or town';
+    isLoading = false;
+  });
+  return;
+}
 
       print(coordinates);
 
@@ -565,7 +603,7 @@ onChanged: (value) {
 },
 
   decoration: InputDecoration(
-    hintText: 'Enter UK postcode',
+    hintText: 'Enter UK postcode or town',
     border: OutlineInputBorder(),
     prefixIcon: Icon(Icons.location_on),
     counterText: '',
@@ -579,6 +617,9 @@ onChanged: (value) {
               width: double.infinity,
               child: ElevatedButton(
                onPressed: () async {
+                FocusScope.of(context).unfocus();
+
+
   searchedPostcode = postcodeController.text.trim().toUpperCase();
 
  if (!recentSearches.contains(searchedPostcode)) {
@@ -602,7 +643,7 @@ onChanged: (value) {
 
             if (searchedLatitude != null && searchedLongitude != null)
   Container(
-    height: 350,
+    height: 450,
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(20),
       border: Border.all(
