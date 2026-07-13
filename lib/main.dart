@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -93,6 +94,10 @@ class _MyHomePageState extends State<MyHomePage>
   List<MapEntry<String, int>> topCrimeTypes = [];
 
   Color riskColor = Colors.green;
+
+Future<void> getCurrentLocation() async {
+  // We'll add the code in the next step.
+}
 
   Future<Map<String, dynamic>?> getCoordinatesFromPostcode() async {
    final postcode = postcodeController.text.trim();
@@ -376,6 +381,8 @@ pulseAnimation = Tween<double>(
 
 pulseController.repeat(reverse: true);
 
+getCurrentLocation();
+
 }
 
 @override
@@ -591,7 +598,7 @@ Container(
               child: TextField(
   controller: postcodeController,
   textCapitalization: TextCapitalization.characters,
-  maxLength: 8,
+  maxLength: 40,
 
 onChanged: (value) {
   postcodeController.value = TextEditingValue(
