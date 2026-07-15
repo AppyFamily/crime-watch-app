@@ -86,6 +86,7 @@ class _MyHomePageState extends State<MyHomePage>
   bool showCrimeList = false;
   bool showHeader = false;
   bool isLoading = false;
+  String expandedCard = '';
   String errorMessage = '';
   int crimeTypesCount = 0;
   String latestCrimeMonth = '';
@@ -96,7 +97,44 @@ class _MyHomePageState extends State<MyHomePage>
   Color riskColor = Colors.green;
 
 Future<void> getCurrentLocation() async {
-  // We'll add the code in the next step.
+  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+  if (!serviceEnabled) {
+    return;
+  }
+
+  LocationPermission permission =
+      await Geolocator.checkPermission();
+
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+  }
+
+  if (permission == LocationPermission.denied ||
+      permission == LocationPermission.deniedForever) {
+    return;
+  }
+
+  Position position = await Geolocator.getCurrentPosition(
+    desiredAccuracy: LocationAccuracy.high,
+  );
+
+  setState(() {
+    searchedLatitude = position.latitude;
+    searchedLongitude = position.longitude;
+  });
+
+searchedPostcode = 'Current Location';
+
+await fetchCrimeData(
+  latitude: position.latitude,
+  longitude: position.longitude,
+);
+
+  mapController.move(
+    LatLng(position.latitude, position.longitude),
+    15,
+  );
 }
 
   Future<Map<String, dynamic>?> getCoordinatesFromPostcode() async {
@@ -159,7 +197,10 @@ Future<Map<String, dynamic>?> getCoordinatesFromTown() async {
 }
 
 
-  Future<void> fetchCrimeData() async {
+  Future<void> fetchCrimeData({
+  double? latitude,
+  double? longitude,
+}) async {
     print('FETCH STARTED');
     print('SEARCH STARTED');
     
@@ -168,23 +209,25 @@ Future<Map<String, dynamic>?> getCoordinatesFromTown() async {
       isLoading = true;
     });
     try {
-     Map<String, dynamic>? coordinates =
-    await getCoordinatesFromPostcode();
+    if (latitude == null || longitude == null) {
+  Map<String, dynamic>? coordinates =
+      await getCoordinatesFromPostcode();
 
-coordinates ??= await getCoordinatesFromTown();
+  coordinates ??= await getCoordinatesFromTown();
 
-if (coordinates == null) {
-  setState(() {
-    errorMessage = 'Could not find postcode or town';
-    isLoading = false;
-  });
-  return;
+  if (coordinates == null) {
+    setState(() {
+      errorMessage = 'Could not find postcode or town';
+      isLoading = false;
+    });
+    return;
+  }
+
+  print(coordinates);
+
+  latitude = coordinates['latitude'];
+  longitude = coordinates['longitude'];
 }
-
-      print(coordinates);
-
-      final latitude = coordinates['latitude'];
-      final longitude = coordinates['longitude'];
 
     setState(() {
       searchedLatitude = latitude;
@@ -193,9 +236,9 @@ if (coordinates == null) {
 
    WidgetsBinding.instance.addPostFrameCallback((_) {
   mapController.move(
-    LatLng(latitude, longitude),
-    15,
-  );
+  LatLng(latitude!, longitude!),
+  15,
+);
 });
 
     final url = Uri.parse(
@@ -208,15 +251,21 @@ if (coordinates == null) {
     print('CRIMES FOUND: ${data.length}');
 
     if (data.isEmpty) {
-      setState(() {
-        errorMessage = 'No crimes found for this area';
-        crimes = [];
-        crimeCategory = '';
-        isLoading = false;
-      });
-
-      return;
+  setState(() {
+    if ((searchedLatitude ?? 0) > 54.8) {
+      errorMessage =
+          'Police Scotland data is not currently available.\n\nNozey currently uses the UK Police API, which only covers England, Wales and Northern Ireland.';
+    } else {
+      errorMessage = 'No crimes found for this area.';
     }
+
+    crimes = [];
+    crimeCategory = '';
+    isLoading = false;
+  });
+
+  return;
+}
     setState(() {
       crimes = data;
 
@@ -356,6 +405,81 @@ topCrimeTypes = topCrimeTypes.take(3).toList();
     )
         .join(' ');
   }
+
+  Widget buildStatCard(
+  IconData icon,
+  String value,
+  String label,
+) {
+  return InkWell(
+ onTap: () {
+  setState(() {
+    expandedCard =
+        expandedCard == label ? '' : label;
+  });
+  if (label != 'Most Common') return;
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Most Common Crime'),
+      content: Text(
+        '${formatCrimeCategory(mostCommonCrime)} is currently the most commonly reported crime in this area.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+},
+  child: Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: SizedBox(
+  height: 120,
+  child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+  icon,
+  color: const Color(0xFF2563EB),
+  size: 30,
+),
+          const SizedBox(height: 8),
+          Text(
+  value,
+  textAlign: TextAlign.center,
+  style: const TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+  ),
+),
+          const SizedBox(height: 4),
+          Text(label),
+          if (expandedCard == label)
+  Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Text(
+      label == 'Most Common'
+          ? formatCrimeCategory(mostCommonCrime)
+          : 'More information coming soon...',
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 13,
+        color: Colors.black54,
+      ),
+    ),
+  ),
+        ],
+      ),
+    ),
+    ),
+  ),
+  );
+}
 
 @override
 void initState() {
@@ -666,7 +790,9 @@ onChanged: (value) {
       ],
     ),
     clipBehavior: Clip.hardEdge,
-    child: FlutterMap(
+    child: Stack(
+  children: [
+    FlutterMap(
                   mapController: mapController,
                   options: MapOptions(
                     initialCenter: LatLng(
@@ -823,8 +949,166 @@ Marker(
                     ),
                   ],
                 ),
-              ),
+Positioned(
+  top: 12,
+  right: 12,
+  child: FloatingActionButton.small(
+    heroTag: 'fullscreenMap',
+    backgroundColor: Colors.white,
+    onPressed: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => FullScreenMap(
+        map: FlutterMap(
+  mapController: mapController,
+  options: MapOptions(
+    initialCenter: LatLng(
+      searchedLatitude!,
+      searchedLongitude!,
+    ),
+    initialZoom: 15,
+  ),
+  children: [
+    TileLayer(
+      urlTemplate:
+          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      userAgentPackageName: 'com.example.crime_watch_app',
+    ),
 
+    MarkerLayer(
+      markers: [
+        Marker(
+          point: LatLng(
+            searchedLatitude!,
+            searchedLongitude!,
+          ),
+          width: 60,
+          height: 60,
+          child: AnimatedBuilder(
+  animation: pulseAnimation,
+  builder: (context, child) {
+    return Transform.scale(
+      scale: pulseAnimation.value,
+      child: child,
+    );
+  },
+  child: Container(
+    width: 50,
+    height: 50,
+    decoration: BoxDecoration(
+      color: Colors.blue,
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: Colors.white,
+        width: 3,
+      ),
+      boxShadow: const [
+        BoxShadow(
+          color: Colors.black26,
+          blurRadius: 6,
+        ),
+      ],
+    ),
+    child: const Icon(
+      Icons.person,
+      color: Colors.white,
+      size: 24,
+    ),
+  ),
+),
+        ),
+
+        ...filteredCrimes
+            .where((crime) =>
+                crime['location']['latitude'] != null &&
+                crime['location']['longitude'] != null)
+            .map(
+              (crime) => Marker(
+                point: LatLng(
+                  double.parse(crime['location']['latitude']),
+                  double.parse(crime['location']['longitude']),
+                ),
+                width: 30,
+                height: 30,
+                child: GestureDetector(
+  onTap: () {
+    setState(() {
+      selectedCrime = crime;
+    });
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            formatCrimeCategory(
+              crime['category'] ?? 'Unknown',
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('📍 ${crime['location']['street']['name']}'),
+              const SizedBox(height: 8),
+              Text('📅 ${crime['month']}'),
+              const SizedBox(height: 8),
+              Text(
+                '📋 ${crime['outcome_status']?['category'] ?? 'No outcome available'}',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  },
+  child: Container(
+    width: 30,
+    height: 30,
+    decoration: BoxDecoration(
+      color: getCrimeColor(crime['category']),
+      shape: BoxShape.circle,
+      boxShadow: const [
+        BoxShadow(
+          color: Colors.black26,
+          blurRadius: 4,
+        ),
+      ],
+    ),
+    child: Center(
+      child: Text(
+        getCrimeIcon(crime['category']),
+        style: const TextStyle(fontSize: 14),
+      ),
+    ),
+  ),
+),
+              ),
+            ),
+      ],
+    ),
+  ],
+),
+      ),
+    ),
+  );
+},
+    child: const Icon(
+      Icons.fullscreen,
+      color: Colors.black87,
+    ),
+  ),
+),
+  ],
+              ),
+  ),
             const SizedBox(height: 20),
 
             if (isLoading)
@@ -1006,99 +1290,133 @@ Text(
 
                     const SizedBox(height: 10),
 
-                    GestureDetector(
-  onTap: () {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('$riskLevel Risk Area'),
-        content: Text(
-          riskLevel == 'Low'
-              ? '✅ This area has relatively low reported crime.\n\nContinue using normal safety precautions.'
-              : riskLevel == 'Medium'
-                  ? '⚠️ This area has a moderate level of reported crime.\n\nStay aware of your surroundings, especially after dark.'
-                  : '🚨 This area has a higher level of reported crime.\n\nRemain alert, keep valuables out of sight and avoid isolated areas where possible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  },
-  child: Container(
+              Container(
   width: double.infinity,
-  padding: const EdgeInsets.all(16),
+  padding: const EdgeInsets.all(20),
   decoration: BoxDecoration(
-    color: riskColor.withOpacity(0.1),
-    borderRadius: BorderRadius.circular(12),
+    color: riskColor.withOpacity(0.12),
+    borderRadius: BorderRadius.circular(20),
     border: Border.all(
       color: riskColor,
       width: 2,
     ),
   ),
   child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+
+      Icon(
+        riskLevel == 'Low'
+            ? Icons.verified_user
+            : riskLevel == 'Medium'
+                ? Icons.warning_amber_rounded
+                : Icons.gpp_bad,
+        size: 44,
+        color: riskColor,
+      ),
+
+      const SizedBox(height: 12),
+
       Text(
         '$riskLevel Risk Area',
         style: TextStyle(
           color: riskColor,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
+      const SizedBox(height: 20),
+
+      const Text(
+        'Safety Score',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
+      const SizedBox(height: 10),
+
+      ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: LinearProgressIndicator(
+          minHeight: 14,
+          value: riskLevel == 'Low'
+              ? 0.8
+              : riskLevel == 'Medium'
+                  ? 0.5
+                  : 0.2,
+          color: riskColor,
+          backgroundColor: Colors.grey.shade300,
+        ),
+      ),
+
+      const SizedBox(height: 10),
+
+      Text(
+        riskLevel == 'Low'
+            ? '8 / 10'
+            : riskLevel == 'Medium'
+                ? '5 / 10'
+                : '2 / 10',
+        style: const TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
         ),
       ),
 
-      const SizedBox(height: 12),
+      const SizedBox(height: 24),
 
-      Text('📍 Postcode: $searchedPostcode'),
-      Text('🚨 Crimes Reported: ${crimes.length}'),
-      Text('📊 Crime Categories: $crimeTypesCount'),
-      Text('🔥 Most Common Crime: $mostCommonCrime'),
-      Text('📅 Latest Data: $latestCrimeMonth'),
+      GridView.count(
+  crossAxisCount: 2,
+  shrinkWrap: true,
+  physics: const NeverScrollableScrollPhysics(),
+  crossAxisSpacing: 12,
+  mainAxisSpacing: 12,
+  childAspectRatio: 1.4,
+  children: [
+
+    buildStatCard(
+      Icons.warning_amber_rounded,
+      '${crimes.length}',
+      'Crimes',
+    ),
+
+    buildStatCard(
+      Icons.grid_view_rounded,
+      '$crimeTypesCount',
+      'Crime Types',
+    ),
+
+    buildStatCard(
+      Icons.local_fire_department,
+      formatCrimeCategory(mostCommonCrime),
+      'Most Common',
+    ),
+
+    buildStatCard(
+      Icons.calendar_month,
+      latestCrimeMonth,
+      'Latest Data',
+    ),
+
+  ],
+),
+
+const SizedBox(height: 20),
+
+const Text(
+  '🏆 Top Crime Types',
+  style: TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+  ),
+),
 
 const SizedBox(height: 12),
 
-Text(
-  '⭐ Safety Score: ${riskLevel == 'Low' ? '8/10' : riskLevel == 'Medium' ? '5/10' : '2/10'}',
-  style: const TextStyle(
-    fontWeight: FontWeight.bold,
-  ),
-),
-
-const SizedBox(height: 16),
-
-const Text(
-  'Top Crime Types',
-  style: TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-  ),
-),
-
-const SizedBox(height: 8),
-
-if (topCrimeTypes.isNotEmpty)
-  Text(
-    '🥇 ${formatCrimeCategory(topCrimeTypes[0].key)} (${topCrimeTypes[0].value})',
-  ),
-
-if (topCrimeTypes.length > 1)
-  Text(
-    '🥈 ${formatCrimeCategory(topCrimeTypes[1].key)} (${topCrimeTypes[1].value})',
-  ),
-
-if (topCrimeTypes.length > 2)
-  Text(
-    '🥉 ${formatCrimeCategory(topCrimeTypes[2].key)} (${topCrimeTypes[2].value})',
-  ),
-
     ],
   ),
-),
-                    ),
+),      
 
 const SizedBox(height: 16),
 
@@ -1353,4 +1671,49 @@ ListTile(
       ),
   );
 }
+
+}   // end of _MyHomePageState
+
+class FullScreenMap extends StatelessWidget {
+  final FlutterMap map;
+
+  const FullScreenMap({
+    super.key,
+    required this.map,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+  backgroundColor: Colors.white,
+  elevation: 0,
+  centerTitle: true,
+  iconTheme: const IconThemeData(
+    color: Colors.black87,
+  ),
+  title: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: const [
+      Icon(
+        Icons.location_on,
+        color: Color(0xFF2563EB),
+        size: 28,
+      ),
+      SizedBox(width: 8),
+      Text(
+        'Nozey Map',
+        style: TextStyle(
+          color: Colors.black87,
+          fontWeight: FontWeight.bold,
+          fontSize: 22,
+        ),
+      ),
+    ],
+  ),
+),
+      body: map,
+    );
+  }
 }
+
